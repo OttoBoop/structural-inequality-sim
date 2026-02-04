@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Simulador de Desigualdade Estrutural</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;background:#0a0a0f;color:#e8d5b7;font-family:Georgia,"Times New Roman",serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
+
+  /* INTRO */
+  #intro{position:fixed;inset:0;z-index:100;background:#0a0a0f;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;align-items:flex-start;padding:20px 16px 48px}
+  #intro.hidden{display:none}
+  .ii{max-width:520px;width:100%;text-align:center;padding-top:min(6vh,32px)}
+  .ii h1{font-size:clamp(19px,5.2vw,32px);font-weight:normal;line-height:1.3;margin-bottom:4px}
+  .ii h1 em{color:#ff6644}
+  .sep{width:40px;height:1px;background:#e8d5b730;margin:12px auto}
+  .ii p{font-size:clamp(12.5px,3.1vw,14.5px);line-height:1.7;margin-bottom:10px;color:#a09880}
+  .ii p.w{color:#cc8844;font-style:italic}
+  .adv{margin:0 0 16px;text-align:left}
+  .adv summary{color:#888;font-size:clamp(11px,2.6vw,13px);cursor:pointer;padding:8px 0;list-style:none;text-align:center;touch-action:manipulation}
+  .adv summary::-webkit-details-marker{display:none}
+  .adv summary::before{content:"▸ ";color:#555}
+  .adv[open] summary::before{content:"▾ "}
+  .ptable{width:100%;border-collapse:collapse;margin:8px 0 6px;font-size:clamp(10px,2.4vw,12px);font-family:monospace}
+  .ptable th{color:#666;font-weight:normal;text-align:center;padding:4px 6px;border-bottom:1px solid #222}
+  .ptable td{color:#b8a88a;text-align:center;padding:3px 6px;border-bottom:1px solid rgba(232,213,183,.05)}
+  .ptable td:first-child{text-align:left;color:#a09880}
+  .ptable-note{color:#445;font-size:clamp(9px,2.2vw,11px);margin-top:6px;text-align:center;line-height:1.5}
+
+  /* Config row */
+  .cfg{display:flex;gap:12px;justify-content:center;align-items:center;margin:0 0 20px;flex-wrap:wrap}
+  .cfg label{color:#888;font-size:clamp(11px,2.6vw,13px);display:flex;align-items:center;gap:6px}
+  .cfg select,.cfg input{background:#151520;border:1px solid #333;color:#e8d5b7;padding:6px 10px;border-radius:4px;font-size:14px;font-family:monospace;touch-action:manipulation}
+  .cfg select{cursor:pointer}
+
+  .bs{background:transparent;border:2px solid #e8d5b7;color:#e8d5b7;padding:12px 32px;font-size:clamp(13px,3.4vw,16px);letter-spacing:3px;cursor:pointer;font-family:Georgia,serif;border-radius:2px;touch-action:manipulation;transition:background .2s,color .2s}
+  .bs:active{background:#e8d5b7;color:#0a0a0f}
+  @media(hover:hover){.bs:hover{background:#e8d5b7;color:#0a0a0f}}
+
+  /* SIM */
+  #sw{position:fixed;inset:0;display:none;flex-direction:column}
+  #sw.active{display:flex}
+  #hd{padding:4px 10px;border-bottom:1px solid rgba(232,213,183,.08);background:rgba(10,10,15,.95);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:4px;min-height:34px;z-index:10}
+  #hd .l{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  #hd .r{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  #pl{font-weight:bold;font-size:clamp(8px,2vw,11px);letter-spacing:2px}
+  #gl{color:#e8d5b7;font-size:clamp(14px,3.8vw,19px);font-family:monospace;font-weight:bold}
+  #fl{color:#445;font-size:clamp(8px,1.8vw,10px);font-family:monospace}
+  .st{font-size:clamp(9px,1.9vw,11px)}
+  #gp{font-size:clamp(10px,2.2vw,13px);font-weight:bold;font-family:monospace}
+
+  /* Speed controls */
+  .spd-row{display:flex;gap:3px;align-items:center}
+  .spd-btn{background:none;border:1px solid #333;color:#666;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:clamp(8px,1.8vw,10px);font-family:monospace;touch-action:manipulation;transition:border-color .15s,color .15s}
+  .spd-btn.on{border-color:#e8d5b7;color:#e8d5b7}
+  .br{background:none;border:1px solid #333;color:#555;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:9px;touch-action:manipulation}
+
+  #cv{flex:1;width:100%;display:block}
+
+  /* Overlays */
+  .ov{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;justify-content:center;align-items:center;padding:20px;text-align:center}
+  .ov.active{display:flex}
+  #lo{background:rgba(10,10,15,.78);animation:fi .5s ease-out}
+  #lo .b{font-size:clamp(24px,6.5vw,44px);color:#ffcc00;font-weight:bold;text-shadow:0 0 36px rgba(255,200,0,.4);margin-bottom:8px;animation:pu .8s ease-out}
+  #lo .s{color:#a09880;font-size:clamp(13px,3.3vw,16px);line-height:1.6}
+  #lo .s .d{color:#445;font-size:clamp(11px,2.6vw,13px)}
+  #eo{background:rgba(10,10,15,.9);animation:fi 1.5s ease-out;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #eo .in{max-width:480px}
+  #eo .hl{font-size:clamp(17px,4.2vw,30px);color:#e8d5b7;line-height:1.4;margin-bottom:12px}
+  #eo .hl b{color:#ff6644}
+  #eo .bd{color:#a09880;font-size:clamp(12px,2.8vw,14px);line-height:1.7;margin-bottom:14px}
+  #eo .ft{color:#556;font-size:clamp(11px,2.5vw,13px);line-height:1.6;border-top:1px solid rgba(232,213,183,.1);padding-top:12px;margin-bottom:16px}
+  .ba{background:none;border:1px solid #e8d5b730;color:#a09880;padding:10px 24px;font-size:clamp(11px,2.6vw,13px);cursor:pointer;font-family:Georgia,serif;letter-spacing:2px;touch-action:manipulation}
+
+  @keyframes fi{from{opacity:0}to{opacity:1}}
+  @keyframes pu{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <div class="ii">
+    <h1>Quando a <em>"Igualdade de Oportunidades"</em> Vira Igualdade de Resultados?</h1>
+    <div class="sep"></div>
+    <p>Uma população de pontos — metade preenchidos <span style="color:#e8d5b7">●</span>, metade vazios <span style="color:#e8d5b7">○</span> — navega um sistema de riqueza com 7 camadas. A cada 10 anos, cada ponto pode subir ou descer uma camada com probabilidades idênticas.</p>
+    <p class="w">Porém, nos primeiros <b>100 anos</b>, os pontos preenchidos são limitados à Camada 2. Não podem subir além de Pobre. Todos começam no fundo. Os pontos vazios começam aleatoriamente.</p>
+    <p>Após 100 anos, todas as barreiras são removidas. As regras se tornam <b>iguais</b> — cada grupo enfrenta probabilidades de transição idênticas. Devido ao ruído estocástico, as distribuições não serão matematicamente iguais, então consideramos convergência quando nenhuma camada diverge mais que <b id="conv-txt">±10 pp</b> de uma divisão 50/50.</p>
+    <p>Então esperamos — e observamos quantas décadas são necessárias para uma quase-igualdade de resultados emergir.</p>
+    <details class="adv" ontoggle="this.scrollIntoView({behavior:'smooth',block:'nearest'})">
+      <summary>Avançado: parâmetros de mobilidade</summary>
+      <table class="ptable">
+        <thead><tr><th>Camada</th><th>↓ Desce</th><th>— Fica</th><th>↑ Sobe</th></tr></thead>
+        <tbody>
+          <tr><td>1. Miserável</td><td>—</td><td>90%</td><td>10%</td></tr>
+          <tr><td>2. Pobre</td><td>10%</td><td>70%</td><td>20%</td></tr>
+          <tr><td>3. Trabalhador</td><td>20%</td><td>55%</td><td>25%</td></tr>
+          <tr><td>4. Classe Média</td><td>25%</td><td>50%</td><td>25%</td></tr>
+          <tr><td>5. Média Alta</td><td>25%</td><td>55%</td><td>20%</td></tr>
+          <tr><td>6. Rico</td><td>20%</td><td>70%</td><td>10%</td></tr>
+          <tr><td>7. Ultra Rico</td><td>10%</td><td>90%</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <div class="ptable-note">Design simétrico: tão difícil escapar da pobreza quanto cair da riqueza. O equilíbrio de longo prazo é uniforme (1/7 por camada).<br>Limiar de convergência: <span id="conv-note">±10 pp</span> de desvio da divisão 50/50 por camada.</div>
+    </details>
+    <div class="cfg">
+      <label>População:
+        <select id="pop-sel">
+          <option value="100">100 pontos</option>
+          <option value="200">200 pontos</option>
+          <option value="500">500 pontos</option>
+          <option value="1000" selected>1000 pontos</option>
+        </select>
+      </label>
+      <label>Convergência:
+        <select id="conv-sel" onchange="updateConvTxt()">
+          <option value="0.05">±5 pp</option>
+          <option value="0.10" selected>±10 pp</option>
+          <option value="0.15">±15 pp</option>
+          <option value="0.20">±20 pp</option>
+        </select>
+      </label>
+    </div>
+    <button class="bs" onclick="startSim()">INICIAR SIMULAÇÃO</button>
+  </div>
+</div>
+
+<div id="sw">
+  <div id="hd">
+    <div class="l">
+      <span id="pl">DISCRIMINAÇÃO</span>
+      <span id="gl">ANO 0</span>
+      <span id="fl"></span>
+    </div>
+    <div class="r">
+      <span class="st" id="ba" style="color:#e8d5b7">● 0.0</span>
+      <span class="st" id="wa" style="color:#e8d5b760">○ 3.0</span>
+      <span id="gp">DIF 3.00</span>
+      <div class="spd-row">
+        <button class="spd-btn on" data-s="1" onclick="setSpd(1)">1×</button>
+        <button class="spd-btn" data-s="2" onclick="setSpd(2)">2×</button>
+        <button class="spd-btn" data-s="5" onclick="setSpd(5)">5×</button>
+        <button class="spd-btn" data-s="10" onclick="setSpd(10)">10×</button>
+        <button class="spd-btn" data-s="50" onclick="setSpd(50)">50×</button>
+      </div>
+      <button class="br" onclick="if(phase==='disc'||phase==='lib'){resetSim();}else{showEnd();}">REINICIAR</button>
+    </div>
+  </div>
+  <canvas id="cv"></canvas>
+</div>
+
+<div id="lo" class="ov">
+  <div>
+    <div class="b">BARREIRAS REMOVIDAS</div>
+    <div class="s">Ano <span id="lg">100</span>. Todas as regras agora são iguais.<br><span class="d">Diferença atual: <span id="lgp">2.00</span> camadas</span></div>
+  </div>
+</div>
+
+<div id="eo" class="ov">
+  <div class="in">
+    <div class="hl" id="ehl"></div>
+    <div class="bd" id="ebd"></div>
+    <div class="ft">Remover barreiras é necessário — mas o passado não desaparece quando as regras mudam.<br><span style="color:#445;font-size:smaller">Cada tick = 10 anos de mobilidade social sob regras idênticas.</span></div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="ba" style="border-color:#e8d5b7;color:#e8d5b7" onclick="continueSim()">CONTINUAR</button>
+      <button class="ba" onclick="resetSim()">RECOMEÇAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EDGE=.10,NEDGE=.20,MID=.25;
+const UP=[EDGE,NEDGE,MID,MID,NEDGE,EDGE,0];
+const DN=[0,EDGE,NEDGE,MID,MID,NEDGE,EDGE];
+const TNL=["Miserável","Pobre","Trabalhador","Classe Média","Média Alta","Rico","Ultra Rico"];
+const TNS=["Miser.","Pobre","Trab.","Média","Méd. A","Rico","Ultra R"];
+const TC=["#6B1D1D","#8B4513","#A0855B","#6B8E6B","#4A7A4A","#3A6B8C","#5B4A8C"];
+const TB=["#1a0808","#1a1008","#1a1608","#081a0e","#081a0e","#081218","#0e0818"];
+const BCAP=1,BGENS=10;
+
+let NB=500,NW=500;
+let dots=[],pos=new Map(),gapH=[];
+let gen=0,phase="disc",convAt=null,convThresh=0.10;
+let running=false,raf=null;
+let baseSpd=1200,spdMult=1,autoSpd=true;
+let tickAccum=0,lastTime=0;
+
+const $=id=>document.getElementById(id);
+const $intro=$("intro"),$sw=$("sw"),$cv=$("cv"),ctx=$cv.getContext("2d");
+const $pl=$("pl"),$gl=$("gl"),$fl=$("fl"),$ba=$("ba"),$wa=$("wa"),$gp=$("gp");
+const $lo=$("lo"),$lg=$("lg"),$lgp=$("lgp");
+const $eo=$("eo"),$ehl=$("ehl"),$ebd=$("ebd");
+
+function makeDots(){
+  const d=[];
+  for(let i=0;i<NB;i++) d.push({id:i,g:0,t:0});
+  for(let i=0;i<NW;i++) d.push({id:NB+i,g:1,t:Math.floor(Math.random()*7)});
+  return d;
+}
+
+function stepDots(barrier){
+  for(let i=0;i<dots.length;i++){
+    const d=dots[i],c=d.t,r=Math.random();
+    const dn=DN[c],up=UP[c];
+    let n=r<dn?c-1:r<dn+(1-dn-up)?c:c+1;
+    if(n<0)n=0;if(n>6)n=6;
+    if(barrier&&d.g===0&&n>BCAP)n=BCAP;
+    d.t=n;
+  }
+}
+
+function getStats(){
+  let bs=0,ws=0;
+  const tc=new Int32Array(14);
+  for(let i=0;i<dots.length;i++){
+    const d=dots[i];
+    tc[d.t*2+d.g]++;
+    if(d.g===0)bs+=d.t;else ws+=d.t;
+  }
+  const ba=bs/NB,wa=ws/NW,gap=wa-ba;
+  let conv=true;
+  for(let i=0;i<7;i++){
+    const b=tc[i*2],w=tc[i*2+1],tot=b+w;
+    if(tot>5&&Math.abs(b/tot-.5)>convThresh){conv=false;break;}
+  }
+  return{ba,wa,gap,tc,conv};
+}
+
+function startSim(){
+  const pop=parseInt($("pop-sel").value);
+  convThresh=parseFloat($("conv-sel").value);
+  NB=pop/2; NW=pop/2;
+  dots=makeDots(); pos.clear(); gapH=[];
+  gen=0; phase="disc"; baseSpd=1200; spdMult=1; autoSpd=true; convAt=null;
+  tickAccum=0; lastTime=0;
+  updateSpdBtns();
+  $intro.classList.add("hidden");
+  $sw.classList.add("active");
+  updateHdr(getStats());
+  running=true;
+  lastTime=performance.now();
+  if(raf)cancelAnimationFrame(raf);
+  raf=requestAnimationFrame(loop);
+}
+
+function updateConvTxt(){
+  const v=parseFloat($("conv-sel").value);
+  const label="±"+Math.round(v*100)+" pp";
+  const ct=$("conv-txt");if(ct)ct.textContent=label;
+  const cn=$("conv-note");if(cn)cn.textContent=label;
+}
+
+
+function setSpd(m){
+  spdMult=m;
+  autoSpd=false;
+  updateSpdBtns();
+}
+
+function updateSpdBtns(){
+  document.querySelectorAll(".spd-btn").forEach(b=>{
+    b.classList.toggle("on",parseInt(b.dataset.s)===spdMult);
+  });
+}
+
+function loop(now){
+  raf=requestAnimationFrame(loop);
+  if(!running){render();return;}
+
+  if(lastTime===0)lastTime=now;
+  const dt=now-lastTime;
+  lastTime=now;
+
+  const effSpd=baseSpd/spdMult;
+  tickAccum+=dt;
+
+  const maxTicksPerFrame=Math.min(spdMult<=10?5:20, Math.max(1,spdMult));
+  let ticked=0;
+
+  while(tickAccum>=effSpd&&ticked<maxTicksPerFrame&&running){
+    tickAccum-=effSpd;
+    ticked++;
+    advance();
+  }
+  if(tickAccum>effSpd*2)tickAccum=0;
+
+  render();
+}
+
+function advance(){
+  const barrier=phase==="disc";
+  stepDots(barrier);
+  gen++;
+  const s=getStats();
+  gapH.push(s.gap);
+  updateHdr(s);
+
+  if(phase==="disc"&&gen>=BGENS){
+    running=false;
+    phase="lib";
+    $pl.textContent="LIBERTAÇÃO";$pl.style.color="#ffcc00";
+    $lg.textContent=gen*10;
+    $lgp.textContent=s.gap.toFixed(2);
+    $lo.classList.add("active");
+    setTimeout(()=>{
+      $lo.classList.remove("active");
+      phase="post";baseSpd=1200;
+      if(autoSpd){spdMult=1;updateSpdBtns();}
+      running=true;lastTime=performance.now();tickAccum=0;
+    },3500);
+  }
+
+  if(phase==="post"){
+    const pg=gen-BGENS;
+    if(autoSpd){
+      if(pg>10&&pg<=30){spdMult=Math.min(5,1+Math.floor((pg-10)/5));updateSpdBtns();}
+      else if(pg>30){spdMult=10;updateSpdBtns();}
+    }
+    if(s.conv&&convAt===null){
+      convAt=gen;
+      phase="end";
+      running=false;
+      showEnd();
+    }
+  }
+}
+
+function updateHdr(s){
+  const pc={disc:"#ff4444",lib:"#ffcc00",post:"#55aaff",end:"#55dd88"};
+  const pn={disc:"DISCRIMINAÇÃO",lib:"LIBERTAÇÃO",post:"PÓS-LIBERTAÇÃO",end:"EQUILÍBRIO"};
+  $pl.textContent=pn[phase]||"";$pl.style.color=pc[phase]||"#888";
+  $gl.textContent="ANO "+gen*10;
+  if(phase==="post") $fl.textContent="+"+(gen-BGENS)*10+"a livre";
+  else if(phase==="end") $fl.textContent="≈ano "+(convAt*10)+" | +"+(gen-BGENS)*10+"a livre";
+  else $fl.textContent="";
+  $ba.textContent="● "+s.ba.toFixed(1);
+  $wa.textContent="○ "+s.wa.toFixed(1);
+  $gp.textContent="DIF "+s.gap.toFixed(2);
+  $gp.style.color=s.gap>.5?"#ff6644":s.gap>.15?"#ffaa44":"#44dd88";
+}
+
+function showEnd(){
+  running=false;
+  const tPct=Math.round(convThresh*100);
+  if(convAt!==null){
+    $ehl.innerHTML='Foram necessários <b>'+((convAt-BGENS)*10)+' anos</b> de regras iguais';
+    $ebd.innerHTML='para desfazer '+(BGENS*10)+' anos de discriminação.<br>Regras iguais no ano '+(BGENS*10)+'. Resultados quase iguais (±'+tPct+' pp) no ano '+(convAt*10)+'.';
+  }else{
+    $ehl.innerHTML='Após <b>'+((gen-BGENS)*10)+'+ anos</b> de regras iguais';
+    $ebd.innerHTML='os efeitos de '+(BGENS*10)+' anos de discriminação persistem.<br>(Limiar de convergência: ±'+tPct+' pp)';
+  }
+  $eo.classList.add("active");
+}
+
+function continueSim(){
+  $eo.classList.remove("active");
+  running=true;
+  lastTime=performance.now();
+  tickAccum=0;
+  if(raf)cancelAnimationFrame(raf);
+  raf=requestAnimationFrame(loop);
+}
+
+function resetSim(){
+  running=false;
+  if(raf){cancelAnimationFrame(raf);raf=null;}
+  $sw.classList.remove("active");
+  $lo.classList.remove("active");
+  $eo.classList.remove("active");
+  $intro.classList.remove("hidden");
+  dots=[];pos.clear();gapH=[];
+  gen=0;phase="disc";baseSpd=1200;spdMult=1;autoSpd=true;convAt=null;convThresh=0.10;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function layoutDots(W,H,tTop,tBot){
+  const tw=W/7;
+  const colH=tBot-tTop;
+  const pad=4; // padding inside each column
+  const bk=[[],[],[],[],[],[],[]];
+  for(let i=0;i<7;i++)bk[i]=[];
+  for(const d of dots)bk[d.t].push(d);
+
+  for(let ti=0;ti<7;ti++){
+    const list=bk[ti],cx=ti*tw+tw/2;
+    const n=list.length;
+    if(n===0)continue;
+
+    // Per-tier radius: fit n circles in this column's area
+    const availW=tw-pad*2;
+    const availH=colH-pad*2;
+    const area=availW*availH;
+    const rIdeal=Math.sqrt(area/(n*Math.PI))*0.72;
+    const r=Math.max(1, Math.min(rIdeal, tw/4, 8));
+
+    // Compute grid: columns from width, rows from dot count
+    const spIdeal=r*2.3;
+    const cols=Math.max(1,Math.floor(availW/spIdeal));
+    const rows=Math.ceil(n/cols);
+
+    // Horizontal spacing: fit cols in available width
+    const spX=cols>1?Math.min(spIdeal, availW/(cols)):spIdeal;
+
+    // Vertical spacing: guarantee rows fit in available height
+    const spYIdeal=r*2.3;
+    const spY=rows>1?Math.min(spYIdeal, availH/(rows)):spYIdeal;
+
+    for(let idx=0;idx<n;idx++){
+      const d=list[idx];
+      const c=idx%cols, row=Math.floor(idx/cols);
+      const tx=cx+(c-(cols-1)/2)*spX;
+      // Anchor from top of column, not centered — prevents overflow
+      const ty=tTop+pad+r+(row*spY);
+      const p=pos.get(d.id);
+      if(!p)pos.set(d.id,{x:tx,y:ty,tx,ty,r});
+      else{p.tx=tx;p.ty=ty;p.r=r;}
+    }
+  }
+}
+
+function render(){
+  const dpr=window.devicePixelRatio||1;
+  const rc=$cv.getBoundingClientRect();
+  const cw=rc.width,ch=rc.height;
+  if($cv.width!==Math.round(cw*dpr))$cv.width=Math.round(cw*dpr);
+  if($cv.height!==Math.round(ch*dpr))$cv.height=Math.round(ch*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=cw,H=ch;
+  const tw=W/7,sm=W<500;
+  const tTop=22,tBot=H*.66;
+  const cTop=H*.74,cBot=H-6;
+
+  ctx.fillStyle="#0a0a0f";ctx.fillRect(0,0,W,H);
+
+  const nm=sm?TNS:TNL;
+  const s=getStats();
+  for(let i=0;i<7;i++){
+    const x=i*tw;
+    ctx.fillStyle=TB[i];ctx.globalAlpha=.5;
+    ctx.fillRect(x+1,tTop,tw-2,tBot-tTop);
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=TC[i];ctx.globalAlpha=.2;ctx.lineWidth=.5;
+    ctx.strokeRect(x+1,tTop,tw-2,tBot-tTop);ctx.globalAlpha=1;
+    ctx.fillStyle=TC[i];
+    ctx.font=`bold ${sm?7:10.5}px Georgia,serif`;
+    ctx.textAlign="center";
+    ctx.fillText(nm[i],x+tw/2,tTop-5);
+    const bi=s.tc[i*2],wi=s.tc[i*2+1];
+    ctx.font=`${sm?6:8.5}px monospace`;
+    ctx.globalAlpha=.4;ctx.fillStyle="#c8b89a";
+    ctx.fillText("●"+bi+" ○"+wi,x+tw/2,tBot+11);
+    ctx.globalAlpha=1;
+  }
+
+  // Barreira
+  const showB=phase==="disc",showG=phase==="post"||phase==="end";
+  if(showB||showG){
+    const bx=(BCAP+1)*tw;
+    ctx.strokeStyle="#ff3333";ctx.lineWidth=showB?2:.5;
+    ctx.setLineDash(showB?[6,4]:[3,8]);
+    ctx.globalAlpha=showB?.7:.1;
+    ctx.beginPath();ctx.moveTo(bx,tTop);ctx.lineTo(bx,tBot);ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=1;
+    if(showB){
+      ctx.fillStyle="#ff3333";ctx.font=`bold ${sm?7:9}px Georgia,serif`;
+      ctx.textAlign="center";ctx.globalAlpha=.6;
+      ctx.fillText("◆ BARREIRA ◆",bx,tBot+(sm?22:26));
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // Pontos
+  layoutDots(W,H,tTop,tBot);
+  const ease=spdMult>10?.4:spdMult>5?.25:.14;
+  // Preenchidos
+  ctx.fillStyle="#e8d5b7";
+  ctx.beginPath();
+  for(let i=0;i<dots.length;i++){
+    const d=dots[i];
+    if(d.g!==0)continue;
+    const p=pos.get(d.id);if(!p)continue;
+    p.x+=(p.tx-p.x)*ease;
+    p.y+=(p.ty-p.y)*ease;
+    ctx.moveTo(p.x+p.r,p.y);
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+  }
+  ctx.fill();
+
+  // Vazios — escala do traço proporcional ao menor raio
+  let minR=8;
+  for(let i=0;i<dots.length;i++){
+    if(dots[i].g!==1)continue;
+    const p=pos.get(dots[i].id);if(p&&p.r<minR)minR=p.r;
+  }
+  ctx.strokeStyle="#e8d5b7";ctx.lineWidth=Math.max(0.4,Math.min(minR*0.35,1.2));
+  ctx.beginPath();
+  for(let i=0;i<dots.length;i++){
+    const d=dots[i];
+    if(d.g!==1)continue;
+    const p=pos.get(d.id);if(!p)continue;
+    p.x+=(p.tx-p.x)*ease;
+    p.y+=(p.ty-p.y)*ease;
+    ctx.moveTo(p.x+p.r,p.y);
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+  }
+  ctx.stroke();
+
+  // Gráfico
+  const h=gapH;
+  if(h.length>1){
+    const cL=10,cR=W-10,cW=cR-cL,cH=cBot-cTop;
+    ctx.fillStyle="rgba(10,10,18,.85)";
+    ctx.fillRect(cL-2,cTop-11,cW+4,cH+14);
+    ctx.fillStyle="#444";ctx.font=`${sm?7:9}px monospace`;
+    ctx.textAlign="left";ctx.fillText("DIFERENÇA DE RIQUEZA",cL,cTop-2);
+    ctx.strokeStyle="rgba(80,80,80,.2)";ctx.lineWidth=.5;
+    ctx.beginPath();ctx.moveTo(cL,cBot);ctx.lineTo(cR,cBot);ctx.stroke();
+    if(h.length>BGENS){
+      const bx2=cL+(BGENS/(h.length-1))*cW;
+      ctx.strokeStyle="rgba(255,50,50,.25)";ctx.lineWidth=.5;
+      ctx.setLineDash([2,2]);
+      ctx.beginPath();ctx.moveTo(bx2,cTop);ctx.lineTo(bx2,cBot);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.strokeStyle="#c8a86a";ctx.lineWidth=1.5;ctx.beginPath();
+    const step=Math.max(1,Math.floor(h.length/cW));
+    let first=true;
+    for(let i=0;i<h.length;i+=step){
+      const x=cL+(i/(h.length-1))*cW;
+      const y=cBot-(Math.max(0,h[i])/3.5)*cH;
+      first?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      first=false;
+    }
+    const lx=cR,ly=cBot-(Math.max(0,h[h.length-1])/3.5)*cH;
+    ctx.lineTo(lx,ly);
+    ctx.stroke();
+  }
+}
+</script>
+</body>
+</html>
